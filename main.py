@@ -8,6 +8,7 @@ import tempfile
 import zipfile
 import socket
 import shutil
+import tkinter.messagebox
 
 def splash(root: ctk.CTk):
     splash_image = ctk.CTkLabel(root, text="", image=ctk.CTkImage(PIL.Image.open("./Assets/Logo Light.png"), PIL.Image.open("./Assets/Logo Dark.png"), (100, 100)))
@@ -91,7 +92,7 @@ def shareWindow(window: ctk.CTk, paths: list):
         global tempPath, zip_path
 
         tempPath = tempfile.mkdtemp(prefix="WiFileShare_")
-        zip_path = os.path.join(tempPath, "files_and_dirs.zip")
+        zip_path = os.path.join(tempPath, "Items.zip")
         
         with zipfile.ZipFile(zip_path, 'w') as zipf:
             for path in paths:
@@ -115,8 +116,8 @@ def shareWindow(window: ctk.CTk, paths: list):
     root.iconbitmap("./Assets/Icon.ico")
     root.title("WiFileShare: Send")
     positionRight = int(root.winfo_screenwidth()/2 - 500/2)
-    positionDown = int(root.winfo_screenheight()/2 - 200/2)
-    root.geometry(f"500x200+{positionRight}+{positionDown - 50}")
+    positionDown = int(root.winfo_screenheight()/2 - 235/2)
+    root.geometry(f"500x235+{positionRight}+{positionDown - 50}")
     root.resizable(0, 0)
 
     title = ctk.CTkLabel(root, text="WiFileShare", font=("Segoe UI", 40, "bold"))
@@ -137,12 +138,10 @@ def shareWindow(window: ctk.CTk, paths: list):
     pause = ctk.BooleanVar(value=False)
     threading.Thread(target=create_zip, args=(paths, ), daemon=True).start()
     tempPath, zip_path = "", ""
-    print(tempPath)
 
     def send(window, tempPath, zipPath, label, iptext, iplabel):
-        global hostSocket, dot_animate, finished, sent_data
+        global hostSocket, dot_animate, finished, sent_data, transfered
 
-        print(f"{hostSocket.getsockname()[0]}:{hostSocket.getsockname()[1]}")
         try:
             clientSocket, clientAddress = hostSocket.accept()
         except OSError as e:
@@ -150,11 +149,26 @@ def shareWindow(window: ctk.CTk, paths: list):
                 pass 
             else:
                 raise e
+        
+        def on_closing():
+            if not finished:
+                if tkinter.messagebox.askyesno("Are you sure?", "Are you sure you want to stop the transfer?"):
+                    clientSocket.send("||--||-@#%#(&*@#-||Stop||-@!^%^#$&-||--||".encode())
+                    clientSocket.close()
+                    hostSocket.close()
+                    root.destroy()
+                else:
+                    pass
+            else:
+                root.destroy()
+                
+        root.protocol("WM_DELETE_WINDOW", on_closing)
+
         iptext.destroy()
         iplabel.destroy()
         label.destroy()
 
-        inFrame = ctk.CTkFrame(root, width=480, height=100, corner_radius=10, border_width=2, fg_color="transparent")
+        inFrame = ctk.CTkFrame(root, width=480, height=120, corner_radius=10, border_width=2, fg_color="transparent")
         inFrame.place(x=10, y=80)
         inFrameLabel = ctk.CTkLabel(root, text="Sharing Insight", font=("Segoe UI", 14, "bold"), padx=4)
         inFrameLabel.place(x=20, y=67)
@@ -168,16 +182,21 @@ def shareWindow(window: ctk.CTk, paths: list):
         progressindecatorlabel = ctk.CTkLabel(inFrame, text="50%", font=("Segoe UI", 13))
         progressindecatorlabel.place(x=285, y=10)
 
+        statusLabel = ctk.CTkLabel(inFrame, text="Status: ", font=("Segoe UI", 13, "bold"))
+        statusLabel.place(x=10, y=35)
+        statusValueLabel = ctk.CTkLabel(inFrame, text="", font=("Consolas", 13, "bold"))
+        statusValueLabel.place(x=60, y=36)
+
         transferSpeedLabel = ctk.CTkLabel(inFrame, text="Transfer Speed: ", font=("Segoe UI", 13, "bold"))
-        transferSpeedLabel.place(x=10, y=35)
+        transferSpeedLabel.place(x=10, y=60)
         transferSpeedValueLabel = ctk.CTkLabel(inFrame, text="", font=("Consolas", 13, "bold"))
-        transferSpeedValueLabel.place(x=110, y=36)
+        transferSpeedValueLabel.place(x=110, y=61)
 
         elapsedTimeLabel = ctk.CTkLabel(inFrame, text="Elapsed Time: ", font=("Segoe UI", 13, "bold"))
-        elapsedTimeLabel.place(x=10, y=55)
+        elapsedTimeLabel.place(x=10, y=85)
 
         elapsedTimeValueLabel = ctk.CTkLabel(inFrame, text="", font=("Consolas", 13, "bold"))
-        elapsedTimeValueLabel.place(x=110, y=56)
+        elapsedTimeValueLabel.place(x=110, y=86)
 
         total_size = os.path.getsize(zipPath)
         clientSocket.send(f"Received_{int(time.time())}.zip".encode())
@@ -190,17 +209,35 @@ def shareWindow(window: ctk.CTk, paths: list):
                 m, s = divmod(seconds, 60)
                 h, m = divmod(m, 60)
                 return "%d:%02d:%02d" % (h, m, s)
+
+            def get_speed_with_unit(size_in_kb):
+                if size_in_kb < 1024:
+                    return f"{size_in_kb} KB/s"
+                elif size_in_kb < 1024 * 1024:
+                    size_in_mb = size_in_kb / 1024.0
+                    return f"{size_in_mb:.2f} MB/s"
+                else:
+                    size_in_gb = size_in_kb / (1024.0 * 1024.0)
+                    return f"{size_in_gb:.2f} GB/s"
             
             while not finished:
-                elapsed_time = time.time() - start_time
-                transfer_speed = sent_data / elapsed_time
-                elapsedTimeValueLabel.configure(text=format_time(elapsed_time))
-                transferSpeedValueLabel.configure(text=f"{transfer_speed / 1024:.2f} KB/s")
+                if not transfered:
+                    elapsed_time = time.time() - start_time
+                    transfer_speed = (sent_data / elapsed_time) / 1024
+                    elapsedTimeValueLabel.configure(text=format_time(elapsed_time))
+                    transferSpeedValueLabel.configure(text=get_speed_with_unit(transfer_speed))
+                if "!" not in statusValueLabel.cget("text"):
+                    if statusValueLabel.cget("text").endswith("..."):
+                        statusValueLabel.configure(text=str(statusValueLabel.cget("text")).replace("...", ""))
+                    else:
+                        statusValueLabel.configure(text=str(statusValueLabel.cget("text"))+".")
                 time.sleep(1)
 
         finished = False
+        transfered = False
         with open(zipPath, "rb") as file:
-            data = file.read(102400)
+            statusValueLabel.configure(text="Transfering")
+            data = file.read(153600)
             sent_data = 0
             start_time = int(time.time())
             threading.Thread(target=show_other_values, daemon=True).start()
@@ -210,10 +247,18 @@ def shareWindow(window: ctk.CTk, paths: list):
                 progressbar.set(sent_data / total_size)
                 prcntge = (sent_data * 100) / total_size
                 progressindecatorlabel.configure(text=f"{prcntge:.2f}%")
-                data = file.read(102400)
+                data = file.read(153600)
+        statusValueLabel.configure(text="Finalizing")
+        progressbar.configure(mode="indeterminate")
         finished = True
         shutil.rmtree(tempPath)
         clientSocket.close()
+        hostSocket.close()
+        progressbar.configure(mode="determinate")
+        transfered = True
+        statusValueLabel.configure(text="Transfer Completed!")
+        ctk.CTkButton(root, text="Home", font=("Seoge UI", 15, "bold"), height=20, command=lambda: [root.destroy(), main(True)]).place(x=350, y=205)
+
     
     def wait_for_connection(tempPath, zipPath):
         global dot_animate, hostSocket
@@ -230,9 +275,8 @@ def shareWindow(window: ctk.CTk, paths: list):
         ipText = ctk.CTkLabel(root, text=f"IP: ", font=("Segoe UI", 13, "bold"))
         ipText.place(x=170, y=110)
         ipAddText = ctk.CTkLabel(root, text=f"{hostSocket.getsockname()[0]}:{hostSocket.getsockname()[1]}", font=("Consolas", 14, "bold"))
-        ipAddText.place(x=190, y=110)
+        ipAddText.place(x=190, y=111)
         hostSocket.listen()
-        print("Listening....")
         threading.Thread(target=send, args=(root, tempPath, zipPath, connection_text, ipText, ipAddText)).start()
 
     def check_if_finished():
