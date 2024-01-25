@@ -253,6 +253,8 @@ def shareWindow(window: ctk.CTk, paths: list):
                             break
                         else:
                             cancelled = True
+                    except ConnectionAbortedError:
+                        cancelled = True
                     sent_data += len(data)
                     progressbar.set(sent_data / total_size)
                     prcntge = (sent_data * 100) / total_size
@@ -352,7 +354,8 @@ def receive_window(window: ctk.CTk):
                         on_first_digit_removed()
                 return True
         return False
-    
+
+
     def validate_port(text):
         global connectButton
 
@@ -361,10 +364,10 @@ def receive_window(window: ctk.CTk):
                 return False
             if len(text) == 3:
                 connectButton.place(x=350, y=200)
-                ipEntry.bind("<Return>", lambda e: receiver_window(root, ipEntry.get(), portEntry.get()))
+                portEntry.bind("<Return>", lambda e: receiver_window(root, ipEntry.get(), portEntry.get()))
             elif len(text) == 2:
                 connectButton.place_forget()
-                ipEntry.unbind_all("<Return>")
+                portEntry.unbind("<Return>", funcid=None)
             return True
         
         else:
@@ -417,7 +420,7 @@ def receive_window(window: ctk.CTk):
     ipEntryLabel.place(x=10, y=15)
     ipEntry = ctk.CTkEntry(detailsFrame, height=13, width=150, font=("Consolas", 12), placeholder_text=placeholder if placeholder is not None else "192.168.0.101", validate="key", validatecommand=(root.register(validate_ip), "%P"))
     ipEntry.place(x=30, y=20)
-    ipEntry.bind("<Return>", lambda e: ipEntry.focus_force() if port_added else None)
+    ipEntry.bind("<Return>", lambda e: portEntry.focus_force() if port_added else None)
 
     connectButton = ctk.CTkButton(root, text="Connect", font=("Segoe UI", 16, "bold"), command=lambda: receiver_window(root, ipEntry.get(), portEntry.get()))
 
