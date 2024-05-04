@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Instant file sharing within your WiFi network for effortless collaboration.">
+    <meta property="og:title" content="WiFileShare Browser File Sharing">
+    <meta property="og:description" content="Instant file sharing within your WiFi network for effortless collaboration.    ">
+    <meta property="og:image" content="https://raw.githubusercontent.com/Sayad-Uddin-Tahsin/WiFileShare/main/Assets/Banner.png">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="WiFileShare Browser File Sharing">
+
+    <meta name="twitter:title" content="WiFileShare Browser File Sharing">
+    <meta name="twitter:description" content="Instant file sharing within your WiFi network for effortless collaboration.    ">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/Sayad-Uddin-Tahsin/WiFileShare/main/Assets/Banner.png">
+    <link href="https://raw.githubusercontent.com/Sayad-Uddin-Tahsin/WiFileShare/main/Assets/Logo%20Light%20nonbg.png" rel="icon"  type="image/x-icon" media="(prefers-color-scheme: dark)"/>
+    <link href="https://raw.githubusercontent.com/Sayad-Uddin-Tahsin/WiFileShare/main/Assets/Logo%20Dark%20nonbg.png" rel="icon"  type="image/x-icon" media="(prefers-color-scheme: light)"/>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFileShare</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-weight: 700;
+            font-size: 24px;
+            margin-bottom: 5px;
+            margin-top: 0;
+        }
+
+        .description {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            margin-top: 5px;
+        }
+
+        form {
+            text-align: center;
+            color: red;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+            color: #666;
+        }
+
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+            text-align: center;
+            font-family: Consolas, monospace;
+        }
+
+        input[type="text"].invalid {
+            border-color: red;
+        }
+
+        input[type="submit"] {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        .github-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #007bff;
+            font-size: 24px;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .github-link:hover {
+            color: #0056b3;
+        }
+
+        .download-button {
+            position: absolute;
+            top: 20px;
+            right: 70px;
+        }
+
+        .download-button a {
+            color: #007bff;
+            font-size: 24px;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .download-button a:hover {
+            color: #0056b3;
+        }
+
+        .copyright {
+            text-align: center;
+            color: #666;
+            margin-top: 30px;
+            font-size: 14px;
+        }
+    </style>
+    <script>
+        fetch('https://api.github.com/repos/Sayad-Uddin-Tahsin/WiFileShare/releases/latest')
+        .then(response => response.json())
+        .then(data => {
+            const assets = data.assets;
+            if (assets.length > 0) {
+                const downloadUrl = assets[0].browser_download_url;
+                document.getElementById('download-wifileshare').setAttribute('href', downloadUrl);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>WiFileShare</h1>
+        <p class="description">Share files securely from Software to Browser</p>
+        <form id="access-form" action="/verify" method="post">
+            <label for="access-code">Enter Access Code:</label>
+            <input type="text" id="access-code" name="access-code" placeholder="Enter Access Code">
+            <input type="submit" value="Verify" id="submit-button">
+        </form>
+        <a class="github-link" href="https://github.com/Sayad-Uddin-Tahsin/WiFileShare" target="_blank" title="GitHub Repository"><i class="fab fa-github"></i></a>
+        <div class="download-button">
+            <a id="download-wifileshare" href="https://github.com/Sayad-Uddin-Tahsin/WiFileShare/releases/latest" title="Download WiFileShare"><i class="fas fa-download"></i></a>
+        </div>
+        <br>
+        <footer>
+            <center>
+                <p style="font-size: 13px;">WiFileShare 2023 - <script type="text/javascript">document.write( new Date().getFullYear() );</script>. All rights reserved. <br>© Sayad Uddin Tahsin | <a href="https://github.com/Sayad-Uddin-Tahsin/WiFileShare/blob/main/LICENSE" target="_blank" style="color: #0070f3;">MIT License</a></p>
+            </center>
+        </footer>
+    </div>
+    <script>
+        document.getElementById('access-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        var form = event.target;
+        var pinInput = form.querySelector('#access-code');
+        var submitButton = form.querySelector('#submit-button');
+
+        pinInput.classList.remove('invalid');
+
+        var accessCode = pinInput.value;
+
+        fetch('/verify', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'pin=' + encodeURIComponent(accessCode),
+        })
+        .then(response => {
+            if (response.ok) {
+                pinInput.value = 'File Downloading...';
+                pinInput.disabled = true;
+                submitButton.disabled = true;
+                pinInput.classList.remove('invalid');
+                window.location.href = '/download';
+            } else {
+                pinInput.classList.add('invalid');
+                pinInput.value = '';
+                pinInput.setAttribute('placeholder', 'Invalid Access Code');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    });
+
+    </script>
+</body>
+</html>

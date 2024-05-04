@@ -11,6 +11,8 @@ import shutil
 import tkinter.messagebox
 from pathlib import Path
 import subprocess
+import flask
+import random
 
 def splash(root: ctk.CTk):
     splash_image = ctk.CTkLabel(root, text="", image=ctk.CTkImage(PIL.Image.open("./Assets/Logo Light.png"), PIL.Image.open("./Assets/Logo Dark.png"), (100, 100)))
@@ -18,6 +20,108 @@ def splash(root: ctk.CTk):
     splash_text = ctk.CTkLabel(root, text="WiFileShare", font=("Segoe UI", 40, "bold"))
     splash_text.place(x=145, y=120)
     return splash_image, splash_text
+
+class FlaskServer:
+    def __init__(self):
+        self.app = flask.Flask(__name__)
+        self.register_routes()
+        self.file_path = ""
+
+    def set_path(self, path):
+        self.file_path = path
+    
+    def delete_path(self):
+        self.file_path = ""
+    
+    def register_routes(self):
+        self.app.add_url_rule('/', 'index', self.index)
+        self.app.add_url_rule('/download', 'download', self.download)
+
+    def route(self, url):
+        if url == "download":
+            return self.download()
+        else:
+            return "Route not found"
+
+import os
+import flask
+import time
+
+class FlaskServer:
+    def __init__(self):
+        self.app = flask.Flask(__name__)
+        self.register_routes()
+        self.file_path = ""
+        self.app.config['SECRET_KEY'] = os.urandom(24)
+        self.pin = ""
+
+    def set_path(self, path):
+        self.file_path = path
+    
+    def delete_path(self):
+        self.file_path = ""
+    
+    def set_pin(self, pin: int):
+        self.pin = str(pin)
+
+    def register_routes(self):
+        self.app.add_url_rule('/', 'index', self.index)
+        self.app.add_url_rule('/verify', 'verify', self.verify_pin, methods=['GET', 'POST'])
+        self.app.add_url_rule('/download', 'download', self.download)
+
+    def index(self):
+        return flask.render_template("index.html", )
+
+    def verify_pin(self):
+        if flask.request.method == 'GET':
+            return flask.redirect('/')
+        
+        user_pin = flask.request.form.get('pin')
+        if user_pin == self.pin:
+            flask.session['verified'] = True
+            return flask.redirect('/download'), 200
+        else:
+            return "Invalid Access Code", 403
+
+    def download(self):
+        if flask.session.get('verified'):
+            def generate():
+                with open(self.file_path, 'rb') as file:
+                    total_size = os.path.getsize(self.file_path)
+                    bytes_sent = 0
+
+                    while True:
+                        chunk = file.read(153600)
+                        if not chunk:
+                            break
+                        bytes_sent += len(chunk)
+                        yield chunk
+                        print(f"Sent {bytes_sent} out of {total_size} bytes")
+
+            if os.path.exists(self.file_path):
+                filename = os.path.basename(self.file_path)
+                headers = {
+                    'Content-Disposition': f'attachment; filename="Received_{int(time.time())}.{filename.split(".")[-1]}"',
+                    'Content-Length': str(os.path.getsize(self.file_path))
+                }
+
+                return flask.Response(flask.stream_with_context(generate()), content_type='application/octet-stream', headers=headers)
+            else:
+                return "File not found", 404
+        else:
+            return "Authentication Failed!", 403
+
+    def run(self, port: int):
+        self.app.run("0.0.0.0", port, debug=False)
+
+server: FlaskServer = None
+port = random.randint(1, 65535)
+def run_server(port):
+    global server
+    server = FlaskServer()
+    server.run(port)
+
+threading.Thread(target=run_server, args=(port, ), daemon=True).start()
 
 def send_window(window: ctk.CTk):
     class ListFrame(ctk.CTkScrollableFrame):
@@ -102,7 +206,6 @@ def shareWindow(window: ctk.CTk, paths: list):
                     for root, _, files in os.walk(path):
                         for file in files:
                             file_path = os.path.join(root, file)
-                            # Calculate the relative path of the file with respect to the base directory
                             relative_path = os.path.relpath(file_path, path)
                             zipf.write(file_path, os.path.join(os.path.basename(path), relative_path))
                         
@@ -157,7 +260,10 @@ def shareWindow(window: ctk.CTk, paths: list):
 
             if not finished:
                 if tkinter.messagebox.askyesno("Are you sure?", "Are you sure you want to stop the transfer?"):
-                    clientSocket.send("||--||-@#%#(&*@#-||Stop||-@!^%^#$&-||--||".encode())
+                    try:
+                        clientSocket.send("||--||-@#%#(&*@#-||Stop||-@!^%^#$&-||--||".encode())
+                    except:
+                        pass
                     cancelled = True
                     tobeexit = True
                 else:
@@ -284,8 +390,6 @@ def shareWindow(window: ctk.CTk, paths: list):
                 root.destroy()
                 exit(1)
             ctk.CTkButton(root, text="Home", font=("Seoge UI", 15, "bold"), height=20, command=lambda: [root.destroy(), main(True)]).place(x=350, y=205)
-
-
     
     def wait_for_connection(tempPath, zipPath):
         global dot_animate, hostSocket
@@ -298,6 +402,8 @@ def shareWindow(window: ctk.CTk, paths: list):
             dot_animate = False
 
             root.destroy()
+            root.quit()
+            os._exit(0)
         
         root.protocol("WM_DELETE_WINDOW", cleanup)
 
@@ -309,10 +415,21 @@ def shareWindow(window: ctk.CTk, paths: list):
         connection_text = ctk.CTkLabel(root, text="Waiting for Connection", font=("Segoe UI", 15, "bold"))
         connection_text.place(x=170, y=80)
         threading.Thread(target=animate, args=(connection_text, ), daemon=True).start()
-        ipText = ctk.CTkLabel(root, text=f"IP: ", font=("Segoe UI", 13, "bold"))
-        ipText.place(x=170, y=110)
-        ipAddText = ctk.CTkLabel(root, text=f"{hostSocket.getsockname()[0]}:{hostSocket.getsockname()[1]}", font=("Consolas", 14, "bold"))
-        ipAddText.place(x=190, y=111)
+        ipText = ctk.CTkLabel(root, text=f"IP (WiFileShare): ", font=("Segoe UI", 13, "bold"))
+        ipText.place(x=120, y=110)
+        ip_addr = f"{hostSocket.getsockname()[0]}:{hostSocket.getsockname()[1]}"
+        if not ip_addr.startswith("127.0.0.1"):
+            ipAddText = ctk.CTkLabel(root, text=ip_addr, font=("Consolas", 14, "bold"))
+        else:
+            ipAddText = ctk.CTkLabel(root, text="Firewall Error!", font=("Consolas", 14, "bold"))
+        ipAddText.place(x=230, y=111)
+
+        browserText = ctk.CTkLabel(root, text=f"IP (Browser): ", font=("Segoe UI", 13, "bold"))
+        browserText.place(x=145, y=130)
+        browserAddr = f"{hostSocket.getsockname()[0]}:{port}/download"
+        server.set_path(zipPath)
+        browserAddText = ctk.CTkLabel(root, text=browserAddr, font=("Consolas", 14, "bold"))
+        browserAddText.place(x=230, y=131)
         hostSocket.listen()
         threading.Thread(target=send, args=(tempPath, zipPath, connection_text, ipText, ipAddText)).start()
 
@@ -614,22 +731,22 @@ def main(boot: bool=True):
             for i, y in enumerate(c):
                 l.place(y=y)
                 if i%5 == 0:
-                    time.sleep(0.0000009)
+                    time.sleep(0.005)
         
         def move_send_button(l):
             c = [i for i in range(-173, 75)]
             for i, x in enumerate(c):
                 l.place(x=x)
-                if i%9 == 0:
-                    time.sleep(0.0000009)
+                if i%6 == 0:
+                    time.sleep(0.005)
         
         def move_receive_button(l):
             c = [i for i in range(283, 500)]
             c.reverse()
             for i, x in enumerate(c):
                 l.place(x=x)
-                if i%9 == 0:
-                    time.sleep(0.0000009)
+                if i%5 == 0:
+                    time.sleep(0.005)
     
         if not arrange:
             title = ctk.CTkLabel(root, text="WiFileShare", font=("Segoe UI", 40, "bold"))
