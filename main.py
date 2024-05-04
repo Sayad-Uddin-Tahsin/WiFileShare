@@ -21,31 +21,6 @@ def splash(root: ctk.CTk):
     splash_text.place(x=145, y=120)
     return splash_image, splash_text
 
-class FlaskServer:
-    def __init__(self):
-        self.app = flask.Flask(__name__)
-        self.register_routes()
-        self.file_path = ""
-
-    def set_path(self, path):
-        self.file_path = path
-    
-    def delete_path(self):
-        self.file_path = ""
-    
-    def register_routes(self):
-        self.app.add_url_rule('/', 'index', self.index)
-        self.app.add_url_rule('/download', 'download', self.download)
-
-    def route(self, url):
-        if url == "download":
-            return self.download()
-        else:
-            return "Route not found"
-
-import os
-import flask
-import time
 
 class FlaskServer:
     def __init__(self):
