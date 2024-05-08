@@ -21,6 +21,7 @@ def splash(root: ctk.CTk):
     splash_text.place(x=145, y=120)
     return splash_image, splash_text
 
+closeSocket = False
 
 class FlaskServer:
     def __init__(self):
@@ -28,16 +29,22 @@ class FlaskServer:
         self.register_routes()
         self.file_path = ""
         self.app.config['SECRET_KEY'] = os.urandom(24)
-        self.pin = ""
+        self.code = ""
+        self.bytes_sent = 0
+        self.finished = False
+        self.transfered = False
+        self.cancelled = False
+        self.to_be_closed = False
 
     def set_path(self, path):
         self.file_path = path
+        self.zip_path = "\\".join(str(path).split("\\")[:-1])
     
     def delete_path(self):
         self.file_path = ""
     
-    def set_pin(self, pin: int):
-        self.pin = str(pin)
+    def set_code(self, code: int):
+        self.code = str(code)
 
     def register_routes(self):
         self.app.add_url_rule('/', 'index', self.index)
@@ -52,28 +59,158 @@ class FlaskServer:
             return flask.redirect('/')
         
         user_pin = flask.request.form.get('pin')
-        if user_pin == self.pin:
+        if user_pin == self.code:
             flask.session['verified'] = True
             return flask.redirect('/download'), 200
         else:
             return "Invalid Access Code", 403
 
+    def detect_if_stopped(self):
+        last_bytes = self.bytes_sent
+        last_changed = int(time.time())
+
+        while True:
+            if self.finished:
+                break
+            lastest_check = self.bytes_sent
+            if lastest_check == last_bytes:
+                if int(time.time()) - last_changed > 3:
+                    self.cancelled = True
+            else:
+                last_changed = int(time.time())
+                last_bytes = lastest_check
+            
+            time.sleep(1)
+        
     def download(self):
+        global closeSocket
+
         if flask.session.get('verified'):
             def generate():
-                with open(self.file_path, 'rb') as file:
-                    total_size = os.path.getsize(self.file_path)
-                    bytes_sent = 0
+                global closeSocket
+                threading.Thread(target=self.detect_if_stopped, daemon=True).start()
+                
+                file_path = self.file_path
+                self.delete_path()
+                self.set_code("")
+                closeSocket = True
+                self.socketHost.close()
+                for i in self.to_be_destroyed:
+                    i.destroy()
+                
+                def on_closing():
+                    if not self.finished:
+                        self.cancelled = True
+                        self.to_be_closed = True
+                    else:
+                        self.root.destroy()
+                        os._exit(0)
 
+                self.root.protocol("WM_DELETE_WINDOW", on_closing)
+                inFrame = ctk.CTkFrame(self.root, width=480, height=120, corner_radius=10, border_width=2, fg_color="transparent")
+                inFrame.place(x=10, y=80)
+                inFrameLabel = ctk.CTkLabel(self.root, text="Sharing Insight", font=("Segoe UI", 14, "bold"), padx=4)
+                inFrameLabel.place(x=20, y=67)
+                inFrame.pack_propagate(False)
+
+                progressLabel = ctk.CTkLabel(inFrame, text="Progress:", font=("Segoe UI", 13, "bold"))
+                progressLabel.place(x=10, y=10)
+                progressbar = ctk.CTkProgressBar(inFrame)
+                progressbar.place(x=80, y=21)
+                progressindecatorlabel = ctk.CTkLabel(inFrame, text="50%", font=("Segoe UI", 13))
+                progressindecatorlabel.place(x=285, y=10)
+
+                statusLabel = ctk.CTkLabel(inFrame, text="Status: ", font=("Segoe UI", 13, "bold"))
+                statusLabel.place(x=10, y=35)
+                statusValueLabel = ctk.CTkLabel(inFrame, text="", font=("Consolas", 13, "bold"))
+                statusValueLabel.place(x=60, y=36)
+
+                transferSpeedLabel = ctk.CTkLabel(inFrame, text="Transfer Speed: ", font=("Segoe UI", 13, "bold"))
+                transferSpeedLabel.place(x=10, y=60)
+                transferSpeedValueLabel = ctk.CTkLabel(inFrame, text="", font=("Consolas", 13, "bold"))
+                transferSpeedValueLabel.place(x=110, y=61)
+
+                elapsedTimeLabel = ctk.CTkLabel(inFrame, text="Elapsed Time: ", font=("Segoe UI", 13, "bold"))
+                elapsedTimeLabel.place(x=10, y=85)
+
+                elapsedTimeValueLabel = ctk.CTkLabel(inFrame, text="", font=("Consolas", 13, "bold"))
+                elapsedTimeValueLabel.place(x=110, y=86)
+
+                total_size = os.path.getsize(file_path)
+
+                def show_other_values():
+                    global bytes_sent
+
+                    def format_time(seconds):
+                        m, s = divmod(seconds, 60)
+                        h, m = divmod(m, 60)
+                        return "%d:%02d:%02d" % (h, m, s)
+
+                    def get_speed_with_unit(size_in_kb):
+                        if size_in_kb < 1024:
+                            return f"{size_in_kb:.2f} KB/s"
+                        elif size_in_kb < 1024 * 1024:
+                            size_in_mb = size_in_kb / 1024.0
+                            return f"{size_in_mb:.2f} MB/s"
+                        else:
+                            size_in_gb = size_in_kb / (1024.0 * 1024.0)
+                            return f"{size_in_gb:.2f} GB/s"
+                    
+                    while not self.finished:
+                        if not self.cancelled:
+                            if not self.transfered:
+                                elapsed_time = time.time() - start_time
+                                transfer_speed = (self.bytes_sent / elapsed_time) / 1024
+                                elapsedTimeValueLabel.configure(text=format_time(elapsed_time))
+                                transferSpeedValueLabel.configure(text=get_speed_with_unit(transfer_speed))
+                            if "!" not in statusValueLabel.cget("text"):
+                                if statusValueLabel.cget("text").endswith("..."):
+                                    statusValueLabel.configure(text=str(statusValueLabel.cget("text")).replace("...", ""))
+                                else:
+                                    statusValueLabel.configure(text=str(statusValueLabel.cget("text"))+".")
+                        else:
+                            self.transfered = True
+                            statusValueLabel.configure(text="Cleaning up")
+                            progressbar.configure(mode="indeterminate")
+                            shutil.rmtree(self.zip_path)
+                            self.finished = True
+                            statusValueLabel.configure(text="Transfer was cancelled!")
+                            ctk.CTkButton(self.root, text="Home", font=("Seoge UI", 15, "bold"), height=20, command=lambda: [self.root.destroy(), main(True)]).place(x=350, y=205)
+                        time.sleep(1)
+                
+                self.bytes_sent = 0
+                with open(file_path, 'rb') as file:
+                    start_time = int(time.time())
+                    threading.Thread(target=show_other_values, daemon=True).start()
+                    statusValueLabel.configure(text="Transfering")
                     while True:
-                        chunk = file.read(153600)
-                        if not chunk:
+                        if not self.cancelled:
+                            chunk = file.read(153600)
+                            if not chunk:
+                                break
+                            self.bytes_sent += len(chunk)
+                            yield chunk
+                            progressbar.set(self.bytes_sent / total_size)
+                            prcntge = (self.bytes_sent * 100) / total_size
+                            progressindecatorlabel.configure(text=f"{prcntge:.2f}%")
+                        else:
                             break
-                        bytes_sent += len(chunk)
-                        yield chunk
-                        print(f"Sent {bytes_sent} out of {total_size} bytes")
+                
+                # if not self.cancelled:
+                #     self.finished = True
+                #     statusValueLabel.configure(text="Finalizing")
+                #     progressbar.configure(mode="indeterminate")
+                #     shutil.rmtree(zip_path)
+                #     progressbar.configure(mode="determinate")
+                #     statusValueLabel.configure(text="Transfer Completed!")
+                #     ctk.CTkButton(self.root, text="Home", font=("Seoge UI", 15, "bold"), height=20, command=lambda: [self.root.destroy(), main(True)]).place(x=350, y=205)                    
 
             if os.path.exists(self.file_path):
+                self.bytes_sent = 0
+                self.finished = False
+                self.transfered = False
+                self.cancelled = False
+                self.to_be_closed = False
                 filename = os.path.basename(self.file_path)
                 headers = {
                     'Content-Disposition': f'attachment; filename="Received_{int(time.time())}.{filename.split(".")[-1]}"',
@@ -85,6 +222,11 @@ class FlaskServer:
                 return "File not found", 404
         else:
             return "Authentication Failed!", 403
+
+    def take(self, root, socketHost: socket.socket, label, iptext, iplabel, browserText, browserAddText, browserCodeText, browserCodeValText):
+        self.root: ctk.CTk = root
+        self.to_be_destroyed = [label, iptext, iplabel, browserText, browserAddText, browserCodeText, browserCodeValText]
+        self.socketHost = socketHost
 
     def run(self, port: int):
         self.app.run("0.0.0.0", port, debug=False)
@@ -217,21 +359,26 @@ def shareWindow(window: ctk.CTk, paths: list):
     threading.Thread(target=create_zip, args=(paths, ), daemon=True).start()
     tempPath, zip_path = "", ""
 
-    def send(tempPath, zipPath, label, iptext, iplabel):
+    def send(tempPath, zipPath, label, iptext, iplabel, browserText, browserAddText, browserCodeText, browserCodeValText):
         global hostSocket, dot_animate, finished, sent_data, transfered, cancelled, tobeexit
         cancelled = False
         tobeexit = False
-
+        finished = False
+        print("INNN")
         try:
             clientSocket, clientAddress = hostSocket.accept()
         except OSError as e:
             if str(e) == "[WinError 10038] An operation was attempted on something that is not a socket":
-                pass 
+                pass
             else:
                 raise e
-
+        
+        if closeSocket:
+            return None
+        
+        server.delete_path()
         def on_closing():
-            global cancelled, tobeexit
+            global cancelled, tobeexit, finished
 
             if not finished:
                 if tkinter.messagebox.askyesno("Are you sure?", "Are you sure you want to stop the transfer?"):
@@ -251,6 +398,10 @@ def shareWindow(window: ctk.CTk, paths: list):
         iptext.destroy()
         iplabel.destroy()
         label.destroy()
+        browserText.destroy()
+        browserAddText.destroy()
+        browserCodeText.destroy()
+        browserCodeValText.destroy()
 
         inFrame = ctk.CTkFrame(root, width=480, height=120, corner_radius=10, border_width=2, fg_color="transparent")
         inFrame.place(x=10, y=80)
@@ -316,7 +467,6 @@ def shareWindow(window: ctk.CTk, paths: list):
                         statusValueLabel.configure(text=str(statusValueLabel.cget("text"))+".")
                 time.sleep(1)
 
-        finished = False
         transfered = False
 
         with open(zipPath, "rb") as file:
@@ -363,7 +513,7 @@ def shareWindow(window: ctk.CTk, paths: list):
             statusValueLabel.configure(text="Transfer was cancelled from receiver end!")
             if tobeexit:
                 root.destroy()
-                exit(1)
+                os._exit(1)
             ctk.CTkButton(root, text="Home", font=("Seoge UI", 15, "bold"), height=20, command=lambda: [root.destroy(), main(True)]).place(x=350, y=205)
     
     def wait_for_connection(tempPath, zipPath):
@@ -396,17 +546,32 @@ def shareWindow(window: ctk.CTk, paths: list):
         if not ip_addr.startswith("127.0.0.1"):
             ipAddText = ctk.CTkLabel(root, text=ip_addr, font=("Consolas", 14, "bold"))
         else:
-            ipAddText = ctk.CTkLabel(root, text="Firewall Error!", font=("Consolas", 14, "bold"))
+            ipAddText = ctk.CTkLabel(root, text="Network Error!", font=("Consolas", 14, "bold"))
         ipAddText.place(x=230, y=111)
 
         browserText = ctk.CTkLabel(root, text=f"IP (Browser): ", font=("Segoe UI", 13, "bold"))
         browserText.place(x=145, y=130)
-        browserAddr = f"{hostSocket.getsockname()[0]}:{port}/download"
+        browserAddr = f"{hostSocket.getsockname()[0]}:{port}"
         server.set_path(zipPath)
-        browserAddText = ctk.CTkLabel(root, text=browserAddr, font=("Consolas", 14, "bold"))
+        if not browserAddr.startswith("127.0.0.1"):
+            browserAddText = ctk.CTkLabel(root, text=browserAddr, font=("Consolas", 14, "bold"))
+        else:
+            browserAddText = ctk.CTkLabel(root, text="Network Error!", font=("Consolas", 14, "bold"))
+        
         browserAddText.place(x=230, y=131)
+        
+        code = random.randint(10000, 999999)
+        server.set_code(code)
+        browserCodeText = ctk.CTkLabel(root, text=f"Access Code: ", font=("Segoe UI", 13, "bold"))
+        browserCodeText.place(x=145, y=150)
+        if not browserAddr.startswith("127.0.0.1"):
+            browserCodeValText = ctk.CTkLabel(root, text=code, font=("Consolas", 14, "bold"))
+        else:
+            browserCodeValText = ctk.CTkLabel(root, text="Network Error!", font=("Consolas", 14, "bold"))
+        browserCodeValText.place(x=230, y=151)
+        server.take(root, hostSocket, connection_text, ipText, ipAddText, browserText, browserAddText, browserCodeText, browserCodeValText)
         hostSocket.listen()
-        threading.Thread(target=send, args=(tempPath, zipPath, connection_text, ipText, ipAddText)).start()
+        threading.Thread(target=send, args=(tempPath, zipPath, connection_text, ipText, ipAddText, browserText, browserAddText, browserCodeText, browserCodeValText, )).start()
 
     def check_if_finished():
         global dot_animate
@@ -447,7 +612,6 @@ def receive_window(window: ctk.CTk):
                 return True
         return False
 
-
     def validate_port(text):
         global connectButton
 
@@ -460,10 +624,14 @@ def receive_window(window: ctk.CTk):
             elif len(text) == 2:
                 connectButton.place_forget()
                 portEntry.unbind("<Return>", funcid=None)
-            return True
-        
-        else:
-            return False
+            
+            if text == "":
+                return True
+            port = int(text)
+            if 0 < port < 65535:
+                return True
+        return False
+
 
     def on_first_digit_added():
         global portEntryLabel, portEntry, port_added
