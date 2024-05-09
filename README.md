@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Sayad-Uddin-Tahsin/GlimpseGrid/actions/workflows/github-code-scanning/codeql"><img src="https://github.com/Sayad-Uddin-Tahsin/GlimpseGrid/actions/workflows/github-code-scanning/codeql/badge.svg" alt="CodeQL Badge"></a>
+  <a href="https://github.com/Sayad-Uddin-Tahsin/WiFileShare/actions/workflows/github-code-scanning/codeql"><img src="https://github.com/Sayad-Uddin-Tahsin/WiFileShare/actions/workflows/github-code-scanning/codeql/badge.svg" alt="CodeQL Badge"></a>
   <a href=""><img src="https://img.shields.io/github/license/Sayad-Uddin-Tahsin/WiFileShare" height=22>
 </p>
 
