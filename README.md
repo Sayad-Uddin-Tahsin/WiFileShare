@@ -62,7 +62,7 @@ https://github.com/Sayad-Uddin-Tahsin/WiFileShare/assets/89304780/89779152-61ff-
 
 | File Size | Elapsed Time | Avg. Speed |
 | :---: | :---: | :---: |
-| 267 MB | `47 seconds` | `5 MB/s` |
+| 23.57 MB | `4 seconds` | `5.8 MB/s` |
 
 </details>
 
