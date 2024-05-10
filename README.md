@@ -18,6 +18,30 @@ WiFileShare is a user-friendly file sharing application designed to facilitate s
 - **Cross-Windows Compatibility:** WiFileShare is designed to work seamlessly across different Windows operating systems, including Windows 10 and Windows 11. This cross-Windows compatibility ensures that users can enjoy the benefits of WiFileShare regardless of their preferred Windows version.
 - **Software-to-Browser Compatibility:** WiFileShare is designed to enable sharing software directly to a browser, so that the receiver doesn’t necessarily need to have WiFileShare installed. Additionally, it can be used to transfer files from a PC to a phone at high speeds!
 
+## How it works?
+
+```mermaid
+graph TD;
+    subgraph SenderPC[Sending PC]
+    SWFS["WiFileShare"]
+    SF["File"]
+    end
+
+    subgraph ReceiverPC[Receiving PC]
+    RWFS["WiFileShare"]
+    RF["File"]
+    end
+
+    Router["Router"]
+
+    SWFS -->|File| SF
+    SF -->|File Data| SWFS
+    SWFS -->|Chunk of Data| Router
+    Router -->|Chunk of Data| RWFS
+    RWFS -->|Chunk write| RF
+
+```
+
 ## How to install WiFileShare
 
 1. **Network Connection:** Ensure that both devices are connected to the same WiFi network or mobile hotspot.
