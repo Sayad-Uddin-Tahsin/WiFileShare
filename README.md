@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/Sayad-Uddin-Tahsin/WiFileShare/actions/workflows/github-code-scanning/codeql"><img src="https://github.com/Sayad-Uddin-Tahsin/WiFileShare/actions/workflows/github-code-scanning/codeql/badge.svg" alt="CodeQL Badge" height=22></a>
-  <a href=""><img src="https://img.shields.io/github/license/Sayad-Uddin-Tahsin/WiFileShare" height=22>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/Sayad-Uddin-Tahsin/WiFileShare" height=22>
 </p>
 
 <h1 align="center">WiFileShare</h1>
@@ -88,4 +88,5 @@ The executable latest version of WiFileShare can be found in the [Releases](http
 
 I welcome contributions, bug reports, and feedback from the community. Feel free to contribute to the development of WiFileShare on GitHub, and let me know if you encounter any issues or have suggestions for improvement.
 
-Happy sharing with WiFileShare!
+## License
+This project is licensed under the [MIT License](./LICENSE).
