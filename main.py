@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import PIL.Image
 import time
+import sys
 import os
 import threading
 from tkinter import filedialog
@@ -14,8 +15,15 @@ import subprocess
 import flask
 import random
 
+try:
+    base_path = sys._MEIPASS
+except Exception:
+    base_path = os.path.abspath(".")
+
+assets_path = os.path.join(base_path, 'Assets')
+
 def splash(root: ctk.CTk):
-    splash_image = ctk.CTkLabel(root, text="", image=ctk.CTkImage(PIL.Image.open("./Assets/Logo Light.png"), PIL.Image.open("./Assets/Logo Dark.png"), (100, 100)))
+    splash_image = ctk.CTkLabel(root, text="", image=ctk.CTkImage(PIL.Image.open(f"{assets_path}/Logo Light.png"), PIL.Image.open(f"{assets_path}/Logo Dark.png"), (100, 100)))
     splash_image.place(x=200, y=20)
     splash_text = ctk.CTkLabel(root, text="WiFileShare", font=("Segoe UI", 40, "bold"))
     splash_text.place(x=145, y=120)
@@ -25,7 +33,7 @@ closeSocket = False
 
 class FlaskServer:
     def __init__(self):
-        self.app = flask.Flask(__name__)
+        self.app = flask.Flask(__name__, template_folder=os.path.join(base_path, 'templates'))
         self.register_routes()
         self.file_path = ""
         self.app.config['SECRET_KEY'] = os.urandom(24)
@@ -52,18 +60,32 @@ class FlaskServer:
         self.app.add_url_rule('/download', 'download', self.download)
 
     def index(self):
-        return flask.render_template("index.html", )
+        return flask.render_template("index.html")
 
     def verify_pin(self):
         if flask.request.method == 'GET':
             return flask.redirect('/')
         
         user_pin = flask.request.form.get('pin')
-        if user_pin == self.code:
-            flask.session['verified'] = True
-            return flask.redirect('/download'), 200
+        if self.code != "":
+            if user_pin == self.code:
+                flask.session['verified'] = True
+                data = {"authorized": True}
+            else:
+                data = {"authorized": False}
         else:
-            return "Invalid Access Code", 403
+            data = {"authorized": False}
+
+        response = flask.Response(
+            response=flask.jsonify(data).get_data(as_text=True),
+            status=200,
+            mimetype='application/json; charset=utf-8'
+        )
+        response.headers['Cache-Control'] = 'no-store'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Server'] = 'WiFileShare'
+
+        return response
 
     def detect_if_stopped(self):
         last_bytes = self.bytes_sent
@@ -195,15 +217,6 @@ class FlaskServer:
                             progressindecatorlabel.configure(text=f"{prcntge:.2f}%")
                         else:
                             break
-                
-                # if not self.cancelled:
-                #     self.finished = True
-                #     statusValueLabel.configure(text="Finalizing")
-                #     progressbar.configure(mode="indeterminate")
-                #     shutil.rmtree(zip_path)
-                #     progressbar.configure(mode="determinate")
-                #     statusValueLabel.configure(text="Transfer Completed!")
-                #     ctk.CTkButton(self.root, text="Home", font=("Seoge UI", 15, "bold"), height=20, command=lambda: [self.root.destroy(), main(True)]).place(x=350, y=205)                    
 
             if os.path.exists(self.file_path):
                 self.bytes_sent = 0
@@ -274,13 +287,12 @@ def send_window(window: ctk.CTk):
         if folder_path:
             frame.add_path(folder_path)
 
+    position = window.winfo_geometry().split("+", 1)[1]
     window.destroy()
     root = ctk.CTk()
-    root.iconbitmap("./Assets/Icon.ico")
+    root.iconbitmap(f"{assets_path}/Icon.ico")
     root.title("WiFileShare: Send")
-    positionRight = int(root.winfo_screenwidth()/2 - 500/2)
-    positionDown = int(root.winfo_screenheight()/2 - 360/2)
-    root.geometry(f"500x360+{positionRight}+{positionDown - 50}")
+    root.geometry(f"500x360+{position}")
     root.resizable(0, 0)
 
     title = ctk.CTkLabel(root, text="WiFileShare", font=("Segoe UI", 40, "bold"))
@@ -307,6 +319,7 @@ def send_window(window: ctk.CTk):
 def shareWindow(window: ctk.CTk, paths: list):
     global tempPath, zip_path, hostSocket, dot_animate
 
+    position = window.winfo_geometry().split("+", 1)[1]
     window.destroy()
 
     def create_zip(paths):
@@ -333,11 +346,9 @@ def shareWindow(window: ctk.CTk, paths: list):
 
     hostSocket = None
     root = ctk.CTk()
-    root.iconbitmap("./Assets/Icon.ico")
+    root.iconbitmap(f"{assets_path}/Icon.ico")
     root.title("WiFileShare: Send")
-    positionRight = int(root.winfo_screenwidth()/2 - 500/2)
-    positionDown = int(root.winfo_screenheight()/2 - 235/2)
-    root.geometry(f"500x235+{positionRight}+{positionDown - 50}")
+    root.geometry(f"500x235+{position}")
     root.resizable(0, 0)
 
     title = ctk.CTkLabel(root, text="WiFileShare", font=("Segoe UI", 40, "bold"))
@@ -392,6 +403,7 @@ def shareWindow(window: ctk.CTk, paths: list):
                     pass
             else:
                 root.destroy()
+                os._exit(0)
                 
         root.protocol("WM_DELETE_WINDOW", on_closing)
 
@@ -657,13 +669,17 @@ def receive_window(window: ctk.CTk):
     portEntry = None
 
     if window:
+        position = window.winfo_geometry().split("+", 1)[1]
         window.destroy()
+    else:
+        position = None
+    
     root = ctk.CTk()
-    root.iconbitmap("./Assets/Icon.ico")
+    root.iconbitmap(f"{assets_path}/Icon.ico")
     root.title("WiFileShare: Receiver")
     positionRight = int(root.winfo_screenwidth()/2 - 500/2)
     positionDown = int(root.winfo_screenheight()/2 - 235/2)
-    root.geometry(f"500x235+{positionRight}+{positionDown - 50}")
+    root.geometry(f"500x235+{position}" if position is not None else f"500x235+{positionRight}+{positionDown - 50}")
     root.resizable(0, 0)
 
     title = ctk.CTkLabel(root, text="WiFileShare", font=("Segoe UI", 40, "bold"))
@@ -690,14 +706,13 @@ def receive_window(window: ctk.CTk):
 
 def receiver_window(window, ip, port):
     global finished, sent_data
-
+    
+    position = window.winfo_geometry().split("+", 1)[1]
     window.destroy()
     root = ctk.CTk()
-    root.iconbitmap("./Assets/Icon.ico")
+    root.iconbitmap(f"{assets_path}/Icon.ico")
     root.title("WiFileShare: Receive")
-    positionRight = int(root.winfo_screenwidth()/2 - 500/2)
-    positionDown = int(root.winfo_screenheight()/2 - 235/2)
-    root.geometry(f"500x235+{positionRight}+{positionDown - 50}")
+    root.geometry(f"500x235+{position}")
     root.resizable(0, 0)
 
     title = ctk.CTkLabel(root, text="WiFileShare", font=("Segoe UI", 40, "bold"))
@@ -717,6 +732,7 @@ def receiver_window(window, ip, port):
                     pass
             else:
                 root.destroy()
+                os._exit(1)
                 
         root.protocol("WM_DELETE_WINDOW", on_closing)
 
@@ -798,6 +814,7 @@ def receiver_window(window, ip, port):
             finished = True
             if tobeexit:
                 root.destroy()
+                os._exit(0)
             else:
                 statusValueLabel.configure(text="Transfer aborted from Host Server!")
 
@@ -859,7 +876,7 @@ def main(boot: bool=True):
     ctk.set_appearance_mode("system")
 
     root.title("WiFileShare")
-    root.iconbitmap("./Assets/Icon.ico")
+    root.iconbitmap(f"{assets_path}/Icon.ico")
     positionRight = int(root.winfo_screenwidth()/2 - 500/2)
     positionDown = int(root.winfo_screenheight()/2 - 200/2)
     root.geometry(f"500x200+{positionRight}+{positionDown - 50}")
@@ -895,13 +912,13 @@ def main(boot: bool=True):
             title = ctk.CTkLabel(root, text="WiFileShare", font=("Segoe UI", 40, "bold"))
             title.place(x=145, y=10)
 
-        send = ctk.CTkLabel(root, text="", image=ctk.CTkImage(PIL.Image.open("./Assets/Send.png"), PIL.Image.open("./Assets/Send.png"), (140, 45)))
+        send = ctk.CTkLabel(root, text="", image=ctk.CTkImage(PIL.Image.open(f"{assets_path}/Send.png"), PIL.Image.open(f"{assets_path}/Send.png"), (140, 45)))
         send.bind("<Button-1>", lambda e: send_window(root))
         send.bind("<Enter>", lambda e: root.configure(cursor="hand2"))
         send.bind("<Leave>", lambda e: root.configure(cursor=""))
         send.place(x=75, y=120)
 
-        receive = ctk.CTkLabel(root, text="", image=ctk.CTkImage(PIL.Image.open("./Assets/Receive.png"), PIL.Image.open("./Assets/Receive.png"), (140, 45)))
+        receive = ctk.CTkLabel(root, text="", image=ctk.CTkImage(PIL.Image.open(f"{assets_path}/Receive.png"), PIL.Image.open(f"{assets_path}/Receive.png"), (140, 45)))
         receive.bind("<Button-1>", lambda e: receive_window(root))
         receive.bind("<Enter>", lambda e: root.configure(cursor="hand2"))
         receive.bind("<Leave>", lambda e: root.configure(cursor=""))

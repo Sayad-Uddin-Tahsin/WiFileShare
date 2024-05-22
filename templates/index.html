@@ -187,8 +187,9 @@
             },
             body: 'pin=' + encodeURIComponent(accessCode),
         })
-        .then(response => {
-            if (response.ok) {
+        .then(response => response.json())
+        .then(data => {
+            if (data.authorized) {
                 pinInput.value = 'File Downloading...';
                 pinInput.disabled = true;
                 submitButton.disabled = true;
