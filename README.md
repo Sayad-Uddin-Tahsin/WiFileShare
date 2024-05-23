@@ -14,9 +14,12 @@ WiFileShare is a user-friendly file sharing application designed to facilitate s
 ## Key Features
 
 - **Localized File Transfer:** WiFileShare enables users to send and receive files instantly within the confines of their WiFi network. This ensures a secure and efficient transfer process, making it ideal for various scenarios such as team collaboration, home networks, or educational settings.
+  
 - **Mobile Hotspot Compatibility:** In addition to local WiFi networks, WiFileShare is compatible with mobile hotspots. This feature allows users to share files even in situations where traditional WiFi may not be available, as long as both devices are connected to the same network.
-- **Cross-Windows Compatibility:** WiFileShare is designed to work seamlessly across different Windows operating systems, including Windows 10 and Windows 11. This cross-Windows compatibility ensures that users can enjoy the benefits of WiFileShare regardless of their preferred Windows version.
-- **Software-to-Browser Compatibility:** WiFileShare is designed to enable sharing software directly to a browser, so that the receiver doesn’t necessarily need to have WiFileShare installed. Additionally, it can be used to transfer files from a PC to a phone at high speeds!
+  
+- **Cross-Platform Compatibility:** WiFileShare is designed to work seamlessly across Windows and Android Platform. This cross-platform compatibility ensures that users can enjoy the benefits of WiFileShare regardless of their preferred platform. Additionally, it can be used to transfer files from a PC to a phone at high speeds!
+  
+- **Software-to-Browser Compatibility:** WiFileShare is designed to enable sharing software directly to a browser, so that the receiver doesn’t necessarily need to have WiFileShare installed. 
 
 ## How it works?
 
