@@ -217,6 +217,13 @@ class FlaskServer:
                             progressindecatorlabel.configure(text=f"{prcntge:.2f}%")
                         else:
                             break
+                self.transfered = True
+                statusValueLabel.configure(text="Cleaning up")
+                progressbar.configure(mode="indeterminate")
+                shutil.rmtree(self.zip_path)
+                self.finished = True
+                statusValueLabel.configure(text="Transfer Completed!")
+                ctk.CTkButton(self.root, text="Home", font=("Seoge UI", 15, "bold"), height=20, command=lambda: [self.root.destroy(), main(True)]).place(x=350, y=205) 
 
             if os.path.exists(self.file_path):
                 self.bytes_sent = 0
