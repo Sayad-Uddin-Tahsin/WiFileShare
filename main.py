@@ -222,6 +222,7 @@ class FlaskServer:
                 progressbar.configure(mode="indeterminate")
                 shutil.rmtree(self.zip_path)
                 self.finished = True
+                progressbar.configure(mode="determinate")
                 statusValueLabel.configure(text="Transfer Completed!")
                 ctk.CTkButton(self.root, text="Home", font=("Seoge UI", 15, "bold"), height=20, command=lambda: [self.root.destroy(), main(True)]).place(x=350, y=205) 
 
